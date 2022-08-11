@@ -14,6 +14,16 @@
 
 #include "adxl313.h"
 
+static const struct regmap_config adxl312_spi_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.rd_table	= &adxl312_readable_regs_table,
+	.wr_table	= &adxl312_writable_regs_table,
+	.max_register	= 0x39,
+	 /* Setting bits 7 and 6 enables multiple-byte read */
+	.read_flag_mask	= BIT(7) | BIT(6),
+};
+
 static const struct regmap_config adxl313_spi_regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
@@ -22,6 +32,22 @@ static const struct regmap_config adxl313_spi_regmap_config = {
 	.max_register	= 0x39,
 	 /* Setting bits 7 and 6 enables multiple-byte read */
 	.read_flag_mask	= BIT(7) | BIT(6),
+};
+
+static const struct regmap_config adxl314_spi_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.rd_table	= &adxl314_readable_regs_table,
+	.wr_table	= &adxl314_writable_regs_table,
+	.max_register	= 0x39,
+	 /* Setting bits 7 and 6 enables multiple-byte read */
+	.read_flag_mask	= BIT(7) | BIT(6),
+};
+
+static const struct regmap_config adxl31x_spi_regmap_config[] = {
+	adxl312_spi_regmap_config,
+	adxl313_spi_regmap_config,
+	adxl314_spi_regmap_config
 };
 
 static int adxl313_spi_setup(struct device *dev, struct regmap *regmap)
@@ -51,26 +77,32 @@ static int adxl313_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	regmap = devm_regmap_init_spi(spi, &adxl313_spi_regmap_config);
+	regmap = devm_regmap_init_spi(spi,
+		&adxl31x_spi_regmap_config[id->driver_data]);
+
 	if (IS_ERR(regmap)) {
 		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
 			PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
-	return adxl313_core_probe(&spi->dev, regmap, id->name,
+	return adxl313_core_probe(&spi->dev, regmap, id,
 				  &adxl313_spi_setup);
 }
 
 static const struct spi_device_id adxl313_spi_id[] = {
-	{ "adxl313" },
+	{ "adxl312", ADXL312 },
+	{ "adxl313", ADXL313 },
+	{ "adxl314", ADXL314 },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(spi, adxl313_spi_id);
 
 static const struct of_device_id adxl313_of_match[] = {
+	{ .compatible = "adi,adxl312" },
 	{ .compatible = "adi,adxl313" },
+	{ .compatible = "adi,adxl314" },
 	{ }
 };
 
@@ -90,4 +122,6 @@ module_spi_driver(adxl313_spi_driver);
 MODULE_AUTHOR("Lucas Stankus <lucas.p.stankus@gmail.com>");
 MODULE_DESCRIPTION("ADXL313 3-Axis Digital Accelerometer SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ADXL312);
 MODULE_IMPORT_NS(IIO_ADXL313);
+MODULE_IMPORT_NS(IIO_ADXL314);
